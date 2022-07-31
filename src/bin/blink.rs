@@ -13,6 +13,16 @@ use systick_monotonic::{fugit::Duration, Systick};
 use stm32_rust_rtic_blink::consts::*;
 use stm32_rust_rtic_blink::types::*;
 
+use embedded_graphics::{
+    mono_font::{ascii::FONT_6X10, MonoTextStyleBuilder},
+    pixelcolor::BinaryColor,
+    prelude::*,
+    text::{Baseline, Text},
+};
+use ssd1306::{prelude::*, I2CDisplayInterface, Ssd1306};
+
+use stm32f1xx_hal::i2c::blocking::BlockingI2c;
+
 #[app(device = stm32f1xx_hal::pac, peripherals = true, dispatchers = [SPI1])]
 mod app {
     use super::*;
@@ -30,28 +40,67 @@ mod app {
     type MonoTimer = Systick<1000>;
 
     #[init]
-    fn init(cx: init::Context) -> (Shared, Local, init::Monotonics) {
-        // Setup clocks
+    fn init(mut cx: init::Context) -> (Shared, Local, init::Monotonics) {
         let mut flash = cx.device.FLASH.constrain();
         let rcc = cx.device.RCC.constrain();
-
         let mono = Systick::new(cx.core.SYST, 36_000_000);
 
         rtt_init_print!();
         rprintln!("init");
 
-        let _clocks = rcc
+        let clocks = rcc
             .cfgr
             .use_hse(8.MHz())
             .sysclk(SYS_FREQ)
             .pclk1(36.MHz())
             .freeze(&mut flash.acr);
 
+        let mut afio = cx.device.AFIO.constrain();
+
+        cx.core.DWT.enable_cycle_counter(); // Needed by BlockingI2c
+
         // Setup LED
         let mut gpioc = cx.device.GPIOC.split();
         let led = gpioc
             .pc13
             .into_push_pull_output_with_state(&mut gpioc.crh, PinState::Low);
+
+        // Display I2C
+        let mut gpiob = cx.device.GPIOB.split();
+        let scl = gpiob.pb6.into_alternate_open_drain(&mut gpiob.crl);
+        let sda = gpiob.pb7.into_alternate_open_drain(&mut gpiob.crl);
+
+        let i2c_bus = BlockingI2c::i2c1(
+            cx.device.I2C1,
+            (scl, sda),
+            &mut afio.mapr,
+            stm32f1xx_hal::i2c::Mode::standard(100.kHz()),
+            clocks,
+            10000,
+            10,
+            10000,
+            10000,
+        );
+
+        let interface = I2CDisplayInterface::new(i2c_bus);
+        let mut display = Ssd1306::new(interface, DisplaySize128x64, DisplayRotation::Rotate0)
+            .into_buffered_graphics_mode();
+        display.init().unwrap();
+
+        let text_style = MonoTextStyleBuilder::new()
+            .font(&FONT_6X10)
+            .text_color(BinaryColor::On)
+            .build();
+
+        Text::with_baseline("Hello world!", Point::zero(), text_style, Baseline::Top)
+            .draw(&mut display)
+            .unwrap();
+
+        Text::with_baseline("Hello Rust!", Point::new(0, 16), text_style, Baseline::Top)
+            .draw(&mut display)
+            .unwrap();
+
+        display.flush().unwrap();
 
         // Schedule the blinking task
         blink::spawn_after(Duration::<u64, 1, 1000>::from_ticks(1000)).unwrap();
