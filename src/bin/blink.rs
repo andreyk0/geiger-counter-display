@@ -14,7 +14,7 @@ use stm32_rust_rtic_blink::consts::*;
 use stm32_rust_rtic_blink::types::*;
 
 use embedded_graphics::{
-    mono_font::{ascii::FONT_6X10, MonoTextStyleBuilder},
+    mono_font::{ascii::FONT_10X20, MonoTextStyleBuilder},
     pixelcolor::BinaryColor,
     prelude::*,
     text::{Baseline, Text},
@@ -88,7 +88,7 @@ mod app {
         display.init().unwrap();
 
         let text_style = MonoTextStyleBuilder::new()
-            .font(&FONT_6X10)
+            .font(&FONT_10X20)
             .text_color(BinaryColor::On)
             .build();
 
