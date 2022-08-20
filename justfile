@@ -1,4 +1,4 @@
-name := "blink"
+name := "main"
 build := "debug" # debug | release
 
 elf_target := "target" / "thumbv7m-none-eabi" / build / name

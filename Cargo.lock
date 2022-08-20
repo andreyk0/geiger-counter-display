@@ -273,6 +273,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "geiger-counter-display"
+version = "0.1.0"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rtic",
+ "embedded-graphics",
+ "embedded-hal",
+ "fugit",
+ "panic-rtt-target",
+ "rtt-target",
+ "ssd1306",
+ "stm32f1 0.15.1",
+ "stm32f1xx-hal",
+ "systick-monotonic",
+]
+
+[[package]]
 name = "hash32"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -574,22 +591,6 @@ dependencies = [
  "cortex-m",
  "usb-device",
  "vcell",
-]
-
-[[package]]
-name = "stm32_rust_rtic_blink"
-version = "0.1.0"
-dependencies = [
- "cortex-m-rtic",
- "embedded-graphics",
- "embedded-hal",
- "fugit",
- "panic-rtt-target",
- "rtt-target",
- "ssd1306",
- "stm32f1 0.15.1",
- "stm32f1xx-hal",
- "systick-monotonic",
 ]
 
 [[package]]

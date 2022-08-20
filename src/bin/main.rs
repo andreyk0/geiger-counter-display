@@ -10,8 +10,8 @@ use stm32f1xx_hal::gpio::PinState;
 use stm32f1xx_hal::prelude::*;
 use systick_monotonic::{fugit::Duration, Systick};
 
-use stm32_rust_rtic_blink::consts::*;
-use stm32_rust_rtic_blink::types::*;
+use geiger_counter_display::consts::*;
+use geiger_counter_display::types::*;
 
 use embedded_graphics::{
     mono_font::{ascii::FONT_10X20, MonoTextStyleBuilder},

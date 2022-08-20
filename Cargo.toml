@@ -2,7 +2,7 @@
 authors = ["Andrey Kartashov <andrey.kartashov@gmail.com>"]
 edition = "2018"
 readme = "README.md"
-name = "stm32_rust_rtic_blink"
+name = "geiger-counter-display"
 version = "0.1.0"
 
 [dependencies]
@@ -27,7 +27,7 @@ features = ["rt", "stm32f103", "medium"]
 #features = ["rt", "stm32f103", "medium", "stm32-usbd"]
 
 [[bin]]
-name = "blink"
+name = "main"
 test = false
 bench = false
 
