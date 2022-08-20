@@ -10,18 +10,14 @@ use stm32f1xx_hal::gpio::PinState;
 use stm32f1xx_hal::prelude::*;
 use systick_monotonic::{fugit::Duration, Systick};
 
-use geiger_counter_display::consts::*;
-use geiger_counter_display::types::*;
+use cortex_m::asm::delay;
 
-use embedded_graphics::{
-    mono_font::{ascii::FONT_10X20, MonoTextStyleBuilder},
-    pixelcolor::BinaryColor,
-    prelude::*,
-    text::{Baseline, Text},
-};
 use ssd1306::{prelude::*, I2CDisplayInterface, Ssd1306};
-
 use stm32f1xx_hal::i2c::blocking::BlockingI2c;
+
+use geiger_counter_display::consts::*;
+use geiger_counter_display::display::*;
+use geiger_counter_display::types::*;
 
 #[app(device = stm32f1xx_hal::pac, peripherals = true, dispatchers = [SPI1])]
 mod app {
@@ -34,6 +30,7 @@ mod app {
     struct Local {
         led: LedPin,
         state: bool,
+        lcd: LcdDisplay,
     }
 
     #[monotonic(binds = SysTick, default = true)]
@@ -87,29 +84,26 @@ mod app {
             .into_buffered_graphics_mode();
         display.init().unwrap();
 
-        let text_style = MonoTextStyleBuilder::new()
-            .font(&FONT_10X20)
-            .text_color(BinaryColor::On)
-            .build();
-
-        Text::with_baseline("Hello world!", Point::zero(), text_style, Baseline::Top)
-            .draw(&mut display)
-            .unwrap();
-
-        Text::with_baseline("Hello Rust!", Point::new(0, 16), text_style, Baseline::Top)
-            .draw(&mut display)
-            .unwrap();
-
-        display.flush().unwrap();
-
         // Schedule the blinking task
         blink::spawn_after(Duration::<u64, 1, 1000>::from_ticks(1000)).unwrap();
 
         (
             Shared {},
-            Local { led, state: false },
+            Local {
+                led,
+                state: false,
+                lcd: display,
+            },
             init::Monotonics(mono),
         )
+    }
+
+    #[idle(local = [lcd])]
+    fn idle(cx: idle::Context) -> ! {
+        loop {
+            render_output(cx.local.lcd, 0.0).unwrap();
+            delay(SYS_FREQ_HZ / 100);
+        }
     }
 
     #[task(local = [led, state])]
