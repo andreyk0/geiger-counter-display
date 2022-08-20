@@ -6,6 +6,7 @@ name = "geiger-counter-display"
 version = "0.1.0"
 
 [dependencies]
+
 embedded-hal = "0.2.7"
 cortex-m = "0.7.6"
 cortex-m-rtic = "1.1.3"

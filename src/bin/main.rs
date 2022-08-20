@@ -17,14 +17,19 @@ use stm32f1xx_hal::i2c::blocking::BlockingI2c;
 
 use geiger_counter_display::consts::*;
 use geiger_counter_display::display::*;
+use geiger_counter_display::timer::*;
 use geiger_counter_display::types::*;
 
 #[app(device = stm32f1xx_hal::pac, peripherals = true, dispatchers = [SPI1])]
 mod app {
+    use geiger_counter_display::timer::PulseTimer;
+
     use super::*;
 
     #[shared]
-    struct Shared {}
+    struct Shared {
+        pulse_timer: PulseTimer,
+    }
 
     #[local]
     struct Local {
@@ -38,6 +43,9 @@ mod app {
     #[init]
     fn init(mut cx: init::Context) -> (Shared, Local, init::Monotonics) {
         let mut flash = cx.device.FLASH.constrain();
+
+        PulseTimer::enable(&mut cx.device.RCC);
+
         let rcc = cx.device.RCC.constrain();
         let mono = Systick::new(cx.core.SYST, SYS_FREQ_HZ);
 
@@ -79,24 +87,28 @@ mod app {
         );
 
         let interface = I2CDisplayInterface::new(i2c_bus);
-        let mut display = Ssd1306::new(interface, DisplaySize128x64, DisplayRotation::Rotate0)
+        let mut lcd = Ssd1306::new(interface, DisplaySize128x64, DisplayRotation::Rotate0)
             .into_buffered_graphics_mode();
-        display.init().unwrap();
+        lcd.init().unwrap();
+
+        // Set up pulse timer
+
+        let pulse_timer = PulseTimer::new(cx.device.TIM1);
 
         // Schedule the blinking task
         blink::spawn_after(Duration::<u64, 1, 1000>::from_ticks(1000)).unwrap();
 
         (
-            Shared {},
-            Local { led, lcd: display },
+            Shared { pulse_timer },
+            Local { led, lcd },
             init::Monotonics(mono),
         )
     }
 
-    #[idle(local = [lcd])]
+    #[idle(local = [lcd], shared = [pulse_timer])]
     fn idle(cx: idle::Context) -> ! {
         loop {
-            render_output(cx.local.lcd, 0.0).unwrap();
+            render_output(cx.local.lcd, 0.1).unwrap();
             cx.local.lcd.flush().unwrap();
             delay(SYS_FREQ_HZ / 4);
         }
