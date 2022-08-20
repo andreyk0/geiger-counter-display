@@ -14,7 +14,7 @@ systick-monotonic = "1.0.0"
 fugit = "0.3.6"
 
 embedded-graphics = "0.7.1"
-ssd1306 = "0.7.0"
+ssd1306 = "0.7.1"
 
 [dependencies.stm32f1]
 version = "0.15.1"
