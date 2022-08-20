@@ -29,7 +29,6 @@ mod app {
     #[local]
     struct Local {
         led: LedPin,
-        state: bool,
         lcd: LcdDisplay,
     }
 
@@ -89,11 +88,7 @@ mod app {
 
         (
             Shared {},
-            Local {
-                led,
-                state: false,
-                lcd: display,
-            },
+            Local { led, lcd: display },
             init::Monotonics(mono),
         )
     }
@@ -106,16 +101,9 @@ mod app {
         }
     }
 
-    #[task(local = [led, state])]
+    #[task(local = [led])]
     fn blink(cx: blink::Context) {
-        rprintln!("blink");
-        if *cx.local.state {
-            cx.local.led.set_high();
-            *cx.local.state = false;
-        } else {
-            cx.local.led.set_low();
-            *cx.local.state = true;
-        }
+        cx.local.led.toggle();
         blink::spawn_after(Duration::<u64, 1, 1000>::from_ticks(1000)).unwrap();
     }
 }
