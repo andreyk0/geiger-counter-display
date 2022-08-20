@@ -97,7 +97,8 @@ mod app {
     fn idle(cx: idle::Context) -> ! {
         loop {
             render_output(cx.local.lcd, 0.0).unwrap();
-            delay(SYS_FREQ_HZ / 100);
+            cx.local.lcd.flush().unwrap();
+            delay(SYS_FREQ_HZ / 4);
         }
     }
 
