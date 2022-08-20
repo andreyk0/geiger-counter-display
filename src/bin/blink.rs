@@ -43,7 +43,7 @@ mod app {
     fn init(mut cx: init::Context) -> (Shared, Local, init::Monotonics) {
         let mut flash = cx.device.FLASH.constrain();
         let rcc = cx.device.RCC.constrain();
-        let mono = Systick::new(cx.core.SYST, 36_000_000);
+        let mono = Systick::new(cx.core.SYST, SYS_FREQ_HZ);
 
         rtt_init_print!();
         rprintln!("init");
