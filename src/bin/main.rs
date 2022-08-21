@@ -22,13 +22,12 @@ use geiger_counter_display::types::*;
 
 #[app(device = stm32f1xx_hal::pac, peripherals = true, dispatchers = [SPI1])]
 mod app {
-    use geiger_counter_display::timer::PulseTimer;
-
     use super::*;
 
     #[shared]
     struct Shared {
         pulse_timer: PulseTimer,
+        last_sample: Option<u16>,
     }
 
     #[local]
@@ -63,14 +62,16 @@ mod app {
 
         cx.core.DWT.enable_cycle_counter(); // Needed by BlockingI2c
 
-        // Setup LED
+        let mut gpioa = cx.device.GPIOA.split();
+        let mut gpiob = cx.device.GPIOB.split();
         let mut gpioc = cx.device.GPIOC.split();
+
+        // Setup LED
         let led = gpioc
             .pc13
             .into_push_pull_output_with_state(&mut gpioc.crh, PinState::Low);
 
         // Display I2C
-        let mut gpiob = cx.device.GPIOB.split();
         let scl = gpiob.pb6.into_alternate_open_drain(&mut gpiob.crl);
         let sda = gpiob.pb7.into_alternate_open_drain(&mut gpiob.crl);
 
@@ -92,26 +93,37 @@ mod app {
         lcd.init().unwrap();
 
         // Set up pulse timer
-
+        gpioa.pa8.into_floating_input(&mut gpioa.crh); // capture geiger pulse
         let pulse_timer = PulseTimer::new(cx.device.TIM1);
 
         // Schedule the blinking task
         blink::spawn_after(Duration::<u64, 1, 1000>::from_ticks(1000)).unwrap();
 
         (
-            Shared { pulse_timer },
+            Shared {
+                pulse_timer,
+                last_sample: None,
+            },
             Local { led, lcd },
             init::Monotonics(mono),
         )
     }
 
-    #[idle(local = [lcd], shared = [pulse_timer])]
-    fn idle(cx: idle::Context) -> ! {
+    #[idle(local = [lcd], shared = [last_sample])]
+    fn idle(mut cx: idle::Context) -> ! {
         loop {
-            render_output(cx.local.lcd, 0.1).unwrap();
+            let s = cx.shared.last_sample.lock(|s| *s);
+            render_output(cx.local.lcd, s.unwrap_or(0) as f32).unwrap();
             cx.local.lcd.flush().unwrap();
             delay(SYS_FREQ_HZ / 4);
         }
+    }
+
+    #[task(priority = 2, binds = TIM1_CC, shared = [pulse_timer, last_sample])]
+    fn tim1cc(mut cx: tim1cc::Context) {
+        let s = cx.shared.pulse_timer.lock(|pt| pt.poll());
+        cx.shared.last_sample.lock(|ls| *ls = s);
+        rprintln!("tim1cc {}", s.unwrap_or(0));
     }
 
     #[task(local = [led])]

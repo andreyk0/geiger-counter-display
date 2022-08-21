@@ -2,7 +2,6 @@ use stm32f1xx_hal::stm32::{RCC, TIM1};
 
 pub struct PulseTimer {
     timer: TIM1,
-    count: i16,
 }
 
 impl PulseTimer {
@@ -13,51 +12,49 @@ impl PulseTimer {
     pub fn new(mut timer: TIM1) -> Self {
         setup_pulse_timer(&mut timer);
 
-        PulseTimer { timer, count: 0 }
+        PulseTimer { timer }
     }
 
-    pub fn poll(&mut self) -> i16 {
-        let cnt = (self.timer.cnt.read().bits() as i16) >> 2;
-        let (diff, _) = cnt.overflowing_sub(self.count);
-        self.count = cnt;
-        diff
+    pub fn poll(&mut self) -> Option<u16> {
+        let duration = self.timer.ccr1.read().bits() as u16;
+        let overcapture = self.timer.sr.read().cc1of().bit_is_set();
+        self.timer.sr.modify(|_, w| w.cc1of().clear_bit());
+        if overcapture {
+            None
+        } else {
+            Some(duration)
+        }
     }
 }
 
+// RM0008 14.3.6 Input capture mode
 fn setup_pulse_timer(tim: &mut TIM1) {
-    // NOTE(unsafe) This executes only during initialisation
-    /*
-       let rcc = unsafe { &(*RCC::ptr()) };
-       rcc.apb2enr.modify(|_, w| w.tim1en().set_bit()); // enable clock
+    // RM0008 14.4.7 TIM1 and TIM8 capture/compare mode register 1 (TIMx_CCMR1)
+    unsafe {
+        tim.ccmr1_input().modify(|_, w| {
+            w.cc1s()
+                .ti1()
+                .ic1f()
+                .bits(0b1111) // input capture 1 filter
+                .ic1psc()
+                .bits(0x0)
+        });
+    }
 
-       tim.ccmr1_input_mut().modify(|_, w| {
-           w.cc1s()
-               .ti1() // 01: CC1 channel is configured as input, IC1 is mapped on TI1
-               .cc2s()
-               .ti2() // 01: CC2 channel is configured as input, IC2 is mapped on TI2
-               .ic1f()
-               .bits(0b1111) // input capture 1 filter
-               .ic2f()
-               .bits(0b1111) // input capture 2 filter
-       });
-       tim.ccer.modify(|_, w| {
-           // CC1NP/CC1P bits select the active polarity of TI1FP1 and TI2FP1 for trigger or capture operations.
-           // 01: inverted/falling edge
-           //   The circuit is sensitive to TIxFP1 falling edge (capture or trigger operations in reset, external
-           //    clock or trigger mode), TIxFP1 is inverted (trigger operation in gated mode or encoder mode)
-           w.cc1p()
-               .set_bit() // active low
-               .cc1np()
-               .clear_bit()
-               .cc2p()
-               .set_bit() // active low
-               .cc2np()
-               .clear_bit()
-       });
-       tim.smcr.modify(|_, w| {
-           w.sms().bits(0b011) // Encoder mode3 (resolution X4 on TI1 and TI2): SMS=’011’ in SMCR register.
-       });
+    // RM0008 15.4.1 TIMx control register 1 (TIMx_CR1)
+    tim.cr1.modify(
+        |_, w| w.ckd().div4(), // filter clock prescaler
+    );
 
-       tim.cr1.modify(|_, w| w.cen().set_bit()); // enable counter
-    */
+    // RM0008 14.4.9 TIM1 and TIM8 capture/compare enable register (TIMx_CCER)
+    tim.ccer.modify(
+        |_, w| {
+            w.cc1p().clear_bit(). // positive edge
+        cc1e().set_bit()
+        }, // enable capture
+    );
+
+    tim.dier.modify(
+        |_, w| w.cc1ie().set_bit(), // enable interrupt
+    );
 }
