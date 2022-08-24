@@ -10,8 +10,12 @@ build: fmt
 	cargo build {{cargo_build_flags}}
 
 # Requires openocd running
-debug: build
+debug-openocd: build
 	arm-none-eabi-gdb -x openocd.gdb -q {{elf_target}}
+
+# Debug with Black Magic probe
+debug-magic: build
+	arm-none-eabi-gdb -x magic.gdb -q {{elf_target}}
 
 bin: build
 	arm-none-eabi-objcopy -O binary {{elf_target}} {{bin_target}}
