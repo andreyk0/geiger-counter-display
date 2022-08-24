@@ -155,6 +155,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cortex-m-semihosting"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c23234600452033cc77e4b761e740e02d2c4168e11dbf36ab14a0f58973592b0"
+dependencies = [
+ "cortex-m",
+]
+
+[[package]]
 name = "critical-section"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -278,12 +287,12 @@ version = "0.1.0"
 dependencies = [
  "cortex-m",
  "cortex-m-rtic",
+ "cortex-m-semihosting",
  "embedded-graphics",
  "embedded-hal",
  "fugit",
  "heapless",
- "panic-rtt-target",
- "rtt-target",
+ "panic-halt",
  "ssd1306",
  "stm32f1 0.15.1",
  "stm32f1xx-hal",
@@ -381,14 +390,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "panic-rtt-target"
-version = "0.1.2"
+name = "panic-halt"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d6ab67bc881453e4c90f958c657c1303670ea87bc1a16e87fd71a40f656dce9"
-dependencies = [
- "cortex-m",
- "rtt-target",
-]
+checksum = "de96540e0ebde571dc55c73d60ef407c653844e6f9a1e2fdbd40c07b9252d812"
 
 [[package]]
 name = "paste"
@@ -498,16 +503,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "rtt-target"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "065d6058bb1204f51a562a67209e1817cf714759d5cf845aa45c75fa7b0b9d9b"
-dependencies = [
- "cortex-m",
- "ufmt-write",
 ]
 
 [[package]]
@@ -659,12 +654,6 @@ dependencies = [
  "fugit",
  "rtic-monotonic",
 ]
-
-[[package]]
-name = "ufmt-write"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e87a2ed6b42ec5e28cc3b94c09982969e9227600b2e3dcbc1db927a84c06bd69"
 
 [[package]]
 name = "unicode-ident"

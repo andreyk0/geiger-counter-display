@@ -2,10 +2,10 @@
 #![no_main]
 #![no_std]
 
+use panic_halt as _;
+
 use fugit::RateExtU32;
-use panic_rtt_target as _;
 use rtic::app;
-use rtt_target::{rprintln, rtt_init_print};
 use stm32f1xx_hal::gpio::PinState;
 use stm32f1xx_hal::prelude::*;
 use systick_monotonic::{fugit::Duration, Systick};
@@ -19,6 +19,8 @@ use geiger_counter_display::consts::*;
 use geiger_counter_display::display::*;
 use geiger_counter_display::timer::*;
 use geiger_counter_display::types::*;
+
+use cortex_m_semihosting::hprintln;
 
 #[app(device = stm32f1xx_hal::pac, peripherals = true, dispatchers = [SPI1])]
 mod app {
@@ -48,8 +50,7 @@ mod app {
         let rcc = cx.device.RCC.constrain();
         let mono = Systick::new(cx.core.SYST, SYS_FREQ_HZ);
 
-        rtt_init_print!();
-        rprintln!("init");
+        hprintln!("init");
 
         let clocks = rcc
             .cfgr
@@ -109,9 +110,11 @@ mod app {
         )
     }
 
-    #[idle(local = [lcd], shared = [last_sample])]
+    #[idle(local = [lcd], shared = [last_sample, pulse_timer])]
     fn idle(mut cx: idle::Context) -> ! {
         loop {
+            //cx.shared.pulse_timer.lock(|pt| pt.debug_print());
+
             let s = cx.shared.last_sample.lock(|s| *s);
             render_output(cx.local.lcd, s.unwrap_or(0) as f32).unwrap();
             cx.local.lcd.flush().unwrap();
@@ -123,7 +126,7 @@ mod app {
     fn tim1cc(mut cx: tim1cc::Context) {
         let s = cx.shared.pulse_timer.lock(|pt| pt.poll());
         cx.shared.last_sample.lock(|ls| *ls = s);
-        rprintln!("tim1cc {}", s.unwrap_or(0));
+        hprintln!("tim1cc {}", s.unwrap_or(0));
     }
 
     #[task(local = [led])]

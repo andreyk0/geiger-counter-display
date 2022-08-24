@@ -1,5 +1,7 @@
 use stm32f1xx_hal::stm32::{RCC, TIM1};
 
+use cortex_m_semihosting::hprintln;
+
 pub struct PulseTimer {
     timer: TIM1,
 }
@@ -15,9 +17,19 @@ impl PulseTimer {
         PulseTimer { timer }
     }
 
+    pub fn debug_print(&self) {
+        hprintln!(
+            "TIM1: cnt: {:x}, sr: {:x}",
+            self.timer.cnt.read().bits() as u16,
+            self.timer.sr.read().bits() as u16
+        );
+    }
+
     pub fn poll(&mut self) -> Option<u16> {
         let duration = self.timer.ccr1.read().bits() as u16;
         let overcapture = self.timer.sr.read().cc1of().bit_is_set();
+
+        hprintln!("d: {}, oc: {}", duration, overcapture);
         self.timer.sr.modify(|_, w| w.cc1of().clear_bit());
         if overcapture {
             None
@@ -41,11 +53,6 @@ fn setup_pulse_timer(tim: &mut TIM1) {
         });
     }
 
-    // RM0008 15.4.1 TIMx control register 1 (TIMx_CR1)
-    tim.cr1.modify(
-        |_, w| w.ckd().div4(), // filter clock prescaler
-    );
-
     // RM0008 14.4.9 TIM1 and TIM8 capture/compare enable register (TIMx_CCER)
     tim.ccer.modify(
         |_, w| {
@@ -56,5 +63,15 @@ fn setup_pulse_timer(tim: &mut TIM1) {
 
     tim.dier.modify(
         |_, w| w.cc1ie().set_bit(), // enable interrupt
+    );
+
+    // RM0008 15.4.1 TIMx control register 1 (TIMx_CR1)
+    tim.cr1.modify(
+        |_, w| {
+            w.ckd()
+                .div4() // filter clock prescaler
+                .cen()
+                .set_bit()
+        }, // enable counter
     );
 }
