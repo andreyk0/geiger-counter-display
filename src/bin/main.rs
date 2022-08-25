@@ -116,6 +116,7 @@ mod app {
             //cx.shared.pulse_timer.lock(|pt| pt.debug_print());
 
             let s = cx.shared.last_sample.lock(|s| *s);
+            cx.local.lcd.clear();
             render_output(cx.local.lcd, s.unwrap_or(0) as f32).unwrap();
             cx.local.lcd.flush().unwrap();
             delay(SYS_FREQ_HZ / 4);
