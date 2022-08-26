@@ -29,7 +29,7 @@ mod app {
     #[shared]
     struct Shared {
         pulse_timer: PulseTimer,
-        last_sample: Option<u16>,
+        last_sample: Option<u32>,
     }
 
     #[local]
@@ -96,7 +96,7 @@ mod app {
 
         // Set up pulse timer
         gpioa.pa8.into_floating_input(&mut gpioa.crh); // capture geiger pulse
-        let pulse_timer = PulseTimer::new(cx.device.TIM1);
+        let pulse_timer = PulseTimer::new(cx.device.TIM1, cx.device.TIM2);
 
         // Schedule the blinking task
         blink::spawn_after(Duration::<u64, 1, 1000>::from_ticks(1000)).unwrap();
@@ -113,13 +113,20 @@ mod app {
 
     #[idle(local = [lcd], shared = [last_sample, pulse_timer])]
     fn idle(mut cx: idle::Context) -> ! {
+        let mut previous = 0u32;
         loop {
-            cx.shared.pulse_timer.lock(|pt| pt.debug_print());
+            //cx.shared.pulse_timer.lock(|pt| pt.debug_print());
 
-            let s = cx.shared.last_sample.lock(|s| *s);
-            cx.local.lcd.clear();
-            render_output(cx.local.lcd, s.unwrap_or(0) as f32).unwrap();
-            cx.local.lcd.flush().unwrap();
+            let s = cx.shared.last_sample.lock(|s| *s).unwrap_or(0);
+            let diff = s.wrapping_sub(previous);
+            previous = s;
+
+            if diff > 0 {
+                cx.local.lcd.clear();
+                render_output(cx.local.lcd, diff as f32).unwrap();
+                cx.local.lcd.flush().unwrap();
+            }
+
             delay(SYS_FREQ_HZ / 4);
         }
     }
@@ -128,7 +135,7 @@ mod app {
     fn tim1cc(mut cx: tim1cc::Context) {
         let s = cx.shared.pulse_timer.lock(|pt| pt.poll());
         cx.shared.last_sample.lock(|ls| *ls = s);
-        hprintln!("tim1cc {}", s.unwrap_or(0));
+        //hprintln!("tim1cc {}", s.unwrap_or(0));
     }
 
     #[task(local = [led])]

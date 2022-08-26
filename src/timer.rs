@@ -1,40 +1,67 @@
-use stm32f1xx_hal::stm32::{RCC, TIM1};
+use stm32f1xx_hal::stm32::{RCC, TIM1, TIM2};
 
 use cortex_m_semihosting::hprintln;
 
 pub struct PulseTimer {
-    timer: TIM1,
+    timer1: TIM1,
+    timer2: TIM2,
 }
 
 impl PulseTimer {
     pub fn enable(rcc: &mut RCC) -> () {
         rcc.apb2enr.modify(|_, w| w.tim1en().set_bit()); // enable clock
+        rcc.apb1enr.modify(|_, w| w.tim2en().set_bit()); // enable clock
     }
 
-    pub fn new(mut timer: TIM1) -> Self {
-        setup_pulse_timer(&mut timer);
+    pub fn new(mut timer1: TIM1, mut timer2: TIM2) -> Self {
+        setup_pulse_timer(&mut timer1);
+        setup_slave_timer(&mut timer2);
 
-        PulseTimer { timer }
+        PulseTimer { timer1, timer2 }
     }
 
     pub fn debug_print(&self) {
         hprintln!(
-            "TIM1: cnt: {:x}, sr: {:x}",
-            self.timer.cnt.read().bits() as u16,
-            self.timer.sr.read().bits() as u16
+            "TIM1: cnt: {}, TIM2: cnt {}",
+            self.timer1.cnt.read().bits() as u16,
+            self.timer2.cnt.read().bits() as u16,
         );
     }
 
-    pub fn poll(&mut self) -> Option<u16> {
-        let duration = self.timer.ccr1.read().bits() as u16;
-        let overcapture = self.timer.sr.read().cc1of().bit_is_set();
+    pub fn poll(&mut self) -> Option<u32> {
+        let ts = self.get_time();
+        let overcapture = self.timer1.sr.read().cc1of().bit_is_set();
 
-        hprintln!("d: {}, oc: {}", duration, overcapture);
-        self.timer.sr.modify(|_, w| w.cc1of().clear_bit());
+        if overcapture {
+            self.debug_print();
+            hprintln!("ts: {}, oc: {}", ts, overcapture);
+        }
+
+        // CC1IF is normally cleared by reading the captured value but
+        //       self.timer1.ccr1.read().bits() as u16;
+        // we ignore that to read 2 16-bit values from tim1,2
+        self.timer1
+            .sr
+            .modify(|_, w| w.cc1of().clear().cc1if().clear());
+
         if overcapture {
             None
         } else {
-            Some(duration)
+            Some(ts)
+        }
+    }
+
+    fn get_time(&self) -> u32 {
+        let th1 = self.timer2.cnt.read().bits() as u16;
+        let tl1 = self.timer1.cnt.read().bits() as u16;
+        let th2 = self.timer2.cnt.read().bits() as u16;
+
+        // hack around possible rollover
+        if th2 == th1 {
+            (th2 as u32) << 16 | tl1 as u32
+        } else {
+            let tl2 = self.timer1.cnt.read().bits() as u16;
+            (th2 as u32) << 16 | tl2 as u32
         }
     }
 }
@@ -65,13 +92,25 @@ fn setup_pulse_timer(tim: &mut TIM1) {
         |_, w| w.cc1ie().set_bit(), // enable interrupt
     );
 
+    // Enable master mode
+    tim.cr2.modify(|_, w| w.mms().update());
+
     // RM0008 15.4.1 TIMx control register 1 (TIMx_CR1)
-    tim.cr1.modify(
-        |_, w| {
-            w.ckd()
-                .div4() // 10: tDTS=4*tCK_INT // filter clock prescaler
-                .cen()
-                .set_bit()
-        }, // enable counter
-    );
+    tim.cr1.modify(|_, w| {
+        w.ckd()
+            .div4() // 10: tDTS=4*tCK_INT // filter clock prescaler
+            .cen()
+            .enabled() // enable counter
+    });
+}
+
+// To increase measured time periods between pulses
+// RM0008 15.3.15 Timer synchronization
+fn setup_slave_timer(tim: &mut TIM2) {
+    // Enable slave mode
+    tim.smcr.modify(|_, w| w.ts().itr0().sms().ext_clock_mode());
+
+    tim.cr1.modify(|_, w| {
+        w.cen().enabled() // enable counter
+    });
 }
