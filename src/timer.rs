@@ -47,7 +47,7 @@ fn setup_pulse_timer(tim: &mut TIM1) {
             w.cc1s()
                 .ti1()
                 .ic1f()
-                .bits(0b1111) // input capture 1 filter
+                .bits(0b1111) // 1111: fSAMPLING=fDTS/32, N=8 // input capture 1 filter
                 .ic1psc()
                 .bits(0x0)
         });
@@ -69,7 +69,7 @@ fn setup_pulse_timer(tim: &mut TIM1) {
     tim.cr1.modify(
         |_, w| {
             w.ckd()
-                .div4() // filter clock prescaler
+                .div4() // 10: tDTS=4*tCK_INT // filter clock prescaler
                 .cen()
                 .set_bit()
         }, // enable counter

@@ -57,6 +57,7 @@ mod app {
             .use_hse(8.MHz())
             .sysclk(SYS_FREQ)
             .pclk1(36.MHz())
+            .pclk2(4_500_000.Hz())
             .freeze(&mut flash.acr);
 
         let mut afio = cx.device.AFIO.constrain();
@@ -113,7 +114,7 @@ mod app {
     #[idle(local = [lcd], shared = [last_sample, pulse_timer])]
     fn idle(mut cx: idle::Context) -> ! {
         loop {
-            //cx.shared.pulse_timer.lock(|pt| pt.debug_print());
+            cx.shared.pulse_timer.lock(|pt| pt.debug_print());
 
             let s = cx.shared.last_sample.lock(|s| *s);
             cx.local.lcd.clear();
