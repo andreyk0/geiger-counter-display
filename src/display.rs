@@ -8,15 +8,11 @@ use embedded_graphics::{
 use core::fmt::Write;
 use heapless::String;
 
-use crate::pulse::PulseSample;
-
-pub fn render_output<D>(d: &mut D, last_sample: Option<PulseSample>) -> Result<(), D::Error>
+pub fn render_output<D>(d: &mut D, sample_duration_seconds: Option<f32>) -> Result<(), D::Error>
 where
     D: DrawTarget<Color = BinaryColor>,
 {
-    let samples_per_sec = last_sample
-        .map(|s| 1f32 / s.duration_seconds)
-        .unwrap_or(0f32);
+    let samples_per_sec = sample_duration_seconds.map(|s| 1f32 / s).unwrap_or(0f32);
 
     let mut sbuf: String<32> = String::new();
 

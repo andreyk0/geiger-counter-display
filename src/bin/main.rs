@@ -31,7 +31,7 @@ mod app {
     #[shared]
     struct Shared {
         pulse_timer: PulseTimer,
-        last_sample: Option<PulseSample>,
+        samples: SampleBuffer,
     }
 
     #[local]
@@ -59,7 +59,7 @@ mod app {
             .use_hse(8.MHz())
             .sysclk(SYS_FREQ)
             .pclk1(36.MHz())
-            .pclk2(4_500_000.Hz())
+            .pclk2(4_500_000.Hz()) // lower frequency to use timer hardware to filter out longer glitches
             .freeze(&mut flash.acr);
 
         let mut afio = cx.device.AFIO.constrain();
@@ -106,19 +106,25 @@ mod app {
         (
             Shared {
                 pulse_timer,
-                last_sample: None,
+                samples: SampleBuffer::new(),
             },
             Local { led, lcd },
             init::Monotonics(mono),
         )
     }
 
-    #[idle(local = [lcd], shared = [last_sample, pulse_timer])]
+    #[idle(local = [lcd], shared = [samples, pulse_timer])]
     fn idle(mut cx: idle::Context) -> ! {
         loop {
             //cx.shared.pulse_timer.lock(|pt| pt.debug_print());
 
-            let s = cx.shared.last_sample.lock(|s| *s);
+            let ts_from = monotonics::now() - 10.secs();
+
+            let s = cx
+                .shared
+                .samples
+                .lock(|s| s.average_duration_secs_newer_than(ts_from));
+
             cx.local.lcd.clear();
             render_output(cx.local.lcd, s).unwrap();
             cx.local.lcd.flush().unwrap();
@@ -127,13 +133,12 @@ mod app {
         }
     }
 
-    #[task(priority = 2, binds = TIM1_CC, shared = [pulse_timer, last_sample])]
+    #[task(priority = 2, binds = TIM1_CC, shared = [pulse_timer, samples])]
     fn tim1cc(mut cx: tim1cc::Context) {
         let s = cx.shared.pulse_timer.lock(|pt| pt.poll());
         cx.shared
-            .last_sample
-            .lock(|ls| *ls = s.map(PulseSample::new));
-        //hprintln!("tim1cc {}", s.unwrap_or(0));
+            .samples
+            .lock(|ls| s.map(|x| ls.add(PulseSample::new(x, monotonics::now()))));
     }
 
     #[task(local = [led])]
