@@ -47,16 +47,13 @@ impl SampleBuffer {
         };
 
         (
-            self.samples[i]
-                .iter()
-                .filter_map(|s| {
-                    if s.ts >= ts_from {
-                        Some(s.duration_seconds)
-                    } else {
-                        None
-                    }
-                })
-                .next(),
+            self.samples[i].iter().find_map(|s| {
+                if s.ts >= ts_from {
+                    Some(s.duration_seconds)
+                } else {
+                    None
+                }
+            }),
             self.average_duration_secs_newer_than(ts_from),
         )
     }
