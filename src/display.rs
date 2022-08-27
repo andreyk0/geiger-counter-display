@@ -8,18 +8,15 @@ use embedded_graphics::{
 use core::fmt::Write;
 use heapless::String;
 
-// tube recharge time
-const MIN_PERIOD: f32 = 0.0005;
+use crate::pulse::PulseSample;
 
-pub fn render_output<D>(d: &mut D, period_secs: f32) -> Result<(), D::Error>
+pub fn render_output<D>(d: &mut D, last_sample: Option<PulseSample>) -> Result<(), D::Error>
 where
     D: DrawTarget<Color = BinaryColor>,
 {
-    let samples_per_sec = if period_secs < MIN_PERIOD {
-        1.0 / MIN_PERIOD
-    } else {
-        1.0 / period_secs
-    };
+    let samples_per_sec = last_sample
+        .map(|s| 1f32 / s.duration_seconds)
+        .unwrap_or(0f32);
 
     let mut sbuf: String<32> = String::new();
 
@@ -28,7 +25,7 @@ where
         .text_color(BinaryColor::On)
         .build();
 
-    Text::with_baseline(">>", Point::zero(), text_style, Baseline::Top).draw(d)?;
+    Text::with_baseline("0123456789abc", Point::zero(), text_style, Baseline::Top).draw(d)?;
 
     write!(sbuf, "{:6.3}", samples_per_sec).unwrap();
 

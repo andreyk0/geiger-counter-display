@@ -8,28 +8,30 @@ use fugit::RateExtU32;
 use rtic::app;
 use stm32f1xx_hal::gpio::PinState;
 use stm32f1xx_hal::prelude::*;
-use systick_monotonic::{fugit::Duration, Systick};
+use systick_monotonic::Systick;
 
 use cortex_m::asm::delay;
 
 use ssd1306::{prelude::*, I2CDisplayInterface, Ssd1306};
 use stm32f1xx_hal::i2c::blocking::BlockingI2c;
 
+use cortex_m_semihosting::hprintln;
+
 use geiger_counter_display::consts::*;
 use geiger_counter_display::display::*;
+use geiger_counter_display::pulse::*;
 use geiger_counter_display::timer::*;
 use geiger_counter_display::types::*;
 
-use cortex_m_semihosting::hprintln;
-
 #[app(device = stm32f1xx_hal::pac, peripherals = true, dispatchers = [SPI1])]
 mod app {
+
     use super::*;
 
     #[shared]
     struct Shared {
         pulse_timer: PulseTimer,
-        last_sample: Option<u32>,
+        last_sample: Option<PulseSample>,
     }
 
     #[local]
@@ -39,7 +41,7 @@ mod app {
     }
 
     #[monotonic(binds = SysTick, default = true)]
-    type MonoTimer = Systick<1000>;
+    type MyMono = Systick<100>; // 100 Hz / 10 ms granularity
 
     #[init]
     fn init(mut cx: init::Context) -> (Shared, Local, init::Monotonics) {
@@ -99,7 +101,7 @@ mod app {
         let pulse_timer = PulseTimer::new(cx.device.TIM1, cx.device.TIM2);
 
         // Schedule the blinking task
-        blink::spawn_after(Duration::<u64, 1, 1000>::from_ticks(1000)).unwrap();
+        blink::spawn_at(monotonics::now() + 1.secs()).unwrap();
 
         (
             Shared {
@@ -116,11 +118,9 @@ mod app {
         loop {
             //cx.shared.pulse_timer.lock(|pt| pt.debug_print());
 
-            let s = cx.shared.last_sample.lock(|s| *s).unwrap_or(0);
-            let sn = s as f32 / 9_000_000f32; // changes if clock config is updated
-
+            let s = cx.shared.last_sample.lock(|s| *s);
             cx.local.lcd.clear();
-            render_output(cx.local.lcd, sn).unwrap();
+            render_output(cx.local.lcd, s).unwrap();
             cx.local.lcd.flush().unwrap();
 
             delay(SYS_FREQ_HZ / 4);
@@ -130,13 +130,15 @@ mod app {
     #[task(priority = 2, binds = TIM1_CC, shared = [pulse_timer, last_sample])]
     fn tim1cc(mut cx: tim1cc::Context) {
         let s = cx.shared.pulse_timer.lock(|pt| pt.poll());
-        cx.shared.last_sample.lock(|ls| *ls = s);
+        cx.shared
+            .last_sample
+            .lock(|ls| *ls = s.map(PulseSample::new));
         //hprintln!("tim1cc {}", s.unwrap_or(0));
     }
 
     #[task(local = [led])]
     fn blink(cx: blink::Context) {
         cx.local.led.toggle();
-        blink::spawn_after(Duration::<u64, 1, 1000>::from_ticks(1000)).unwrap();
+        blink::spawn_at(monotonics::now() + 1.secs()).unwrap();
     }
 }

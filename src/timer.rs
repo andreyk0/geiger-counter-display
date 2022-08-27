@@ -2,6 +2,8 @@ use stm32f1xx_hal::stm32::{RCC, TIM1, TIM2};
 
 use cortex_m_semihosting::hprintln;
 
+use crate::consts::*;
+
 pub struct PulseTimer {
     timer1: TIM1,
     timer2: TIM2,
@@ -33,7 +35,8 @@ impl PulseTimer {
         );
     }
 
-    pub fn poll(&mut self) -> Option<u32> {
+    // last period, seconds
+    pub fn poll(&mut self) -> Option<f32> {
         let ts = self.get_time();
         let overcapture = self.timer1.sr.read().cc1of().bit_is_set();
 
@@ -42,8 +45,15 @@ impl PulseTimer {
             hprintln!("ts: {}, oc: {}", ts, overcapture);
         }
 
-        let diff = ts.wrapping_sub(self.last_pulse_ts);
-        self.last_pulse_ts = ts;
+        let diff = (ts.wrapping_sub(self.last_pulse_ts) as f32) / TIM_TICKS_PER_SEC;
+
+        // some glitches are not filtered by the timer hardware
+        let result = if diff > PULSE_MIN_PERIOD_SEC {
+            self.last_pulse_ts = ts;
+            Some(diff)
+        } else {
+            None
+        };
 
         // CC1IF is normally cleared by reading the captured value but
         //       self.timer1.ccr1.read().bits() as u16;
@@ -55,7 +65,7 @@ impl PulseTimer {
         if overcapture {
             None
         } else {
-            Some(diff)
+            result
         }
     }
 
