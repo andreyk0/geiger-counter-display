@@ -113,19 +113,15 @@ mod app {
 
     #[idle(local = [lcd], shared = [last_sample, pulse_timer])]
     fn idle(mut cx: idle::Context) -> ! {
-        let mut previous = 0u32;
         loop {
             //cx.shared.pulse_timer.lock(|pt| pt.debug_print());
 
             let s = cx.shared.last_sample.lock(|s| *s).unwrap_or(0);
-            let diff = s.wrapping_sub(previous);
-            previous = s;
+            let sn = s as f32 / 9_000_000f32; // changes if clock config is updated
 
-            if diff > 0 {
-                cx.local.lcd.clear();
-                render_output(cx.local.lcd, diff as f32).unwrap();
-                cx.local.lcd.flush().unwrap();
-            }
+            cx.local.lcd.clear();
+            render_output(cx.local.lcd, sn).unwrap();
+            cx.local.lcd.flush().unwrap();
 
             delay(SYS_FREQ_HZ / 4);
         }

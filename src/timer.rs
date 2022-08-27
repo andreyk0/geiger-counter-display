@@ -5,6 +5,7 @@ use cortex_m_semihosting::hprintln;
 pub struct PulseTimer {
     timer1: TIM1,
     timer2: TIM2,
+    last_pulse_ts: u32,
 }
 
 impl PulseTimer {
@@ -17,7 +18,11 @@ impl PulseTimer {
         setup_pulse_timer(&mut timer1);
         setup_slave_timer(&mut timer2);
 
-        PulseTimer { timer1, timer2 }
+        PulseTimer {
+            timer1,
+            timer2,
+            last_pulse_ts: 0u32,
+        }
     }
 
     pub fn debug_print(&self) {
@@ -37,6 +42,9 @@ impl PulseTimer {
             hprintln!("ts: {}, oc: {}", ts, overcapture);
         }
 
+        let diff = ts.wrapping_sub(self.last_pulse_ts);
+        self.last_pulse_ts = ts;
+
         // CC1IF is normally cleared by reading the captured value but
         //       self.timer1.ccr1.read().bits() as u16;
         // we ignore that to read 2 16-bit values from tim1,2
@@ -47,7 +55,7 @@ impl PulseTimer {
         if overcapture {
             None
         } else {
-            Some(ts)
+            Some(diff)
         }
     }
 

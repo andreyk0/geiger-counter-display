@@ -21,7 +21,7 @@ where
 
     Text::with_baseline("X Duh!", Point::zero(), text_style, Baseline::Top).draw(d)?;
 
-    write!(sbuf, "{:6.1}", v);
+    write!(sbuf, "{:6.3}", v);
 
     Text::with_baseline(&sbuf, Point::new(0, 16), text_style, Baseline::Top).draw(d)?;
 
