@@ -39,7 +39,11 @@ impl SampleBuffer {
     }
 
     // (last duration secs, avrg duration secs)
-    pub fn get(&self, ts_from: SystemInstant) -> (Option<f32>, Option<f32>) {
+    pub fn get(
+        &self,
+        ts_from_last: SystemInstant,
+        ts_from_avg: SystemInstant,
+    ) -> (Option<f32>, Option<f32>) {
         let i = if self.next_idx > 0 {
             self.next_idx - 1
         } else {
@@ -48,13 +52,13 @@ impl SampleBuffer {
 
         (
             self.samples[i].iter().find_map(|s| {
-                if s.ts >= ts_from {
+                if s.ts >= ts_from_last {
                     Some(s.duration_seconds)
                 } else {
                     None
                 }
             }),
-            self.average_duration_secs_newer_than(ts_from),
+            self.average_duration_secs_newer_than(ts_from_avg),
         )
     }
 

@@ -112,8 +112,9 @@ mod app {
     #[idle(local = [lcd], shared = [samples, pulse_timer])]
     fn idle(mut cx: idle::Context) -> ! {
         loop {
-            let ts_from = monotonics::now() - 10.secs();
-            let (slast, savg) = cx.shared.samples.lock(|s| s.get(ts_from));
+            let ts_from_avg = monotonics::now() - 30.secs();
+            let ts_from_last = monotonics::now() - 5.secs();
+            let (slast, savg) = cx.shared.samples.lock(|s| s.get(ts_from_last, ts_from_avg));
 
             cx.local.lcd.clear();
             render_output(cx.local.lcd, slast, savg).unwrap();

@@ -43,9 +43,19 @@ where
     Text::with_baseline(sbuf.as_str(), Point::zero(), text_style, Baseline::Top).draw(d)?;
     sbuf.clear();
 
-    write!(sbuf, "{:6.3}/s", avg_samples_per_sec).unwrap();
+    write!(sbuf, "{:6.3} cnt/s", avg_samples_per_sec).unwrap();
     Text::with_baseline(&sbuf, Point::new(0, 16), text_style, Baseline::Top).draw(d)?;
     sbuf.clear();
 
+    write!(sbuf, "{:6.3} mR/h", cps_to_mrh(avg_samples_per_sec)).unwrap();
+    Text::with_baseline(&sbuf, Point::new(0, 38), text_style, Baseline::Top).draw(d)?;
+
     Ok(())
+}
+
+// counts / sec to mR/h (from the manufacturer graph)
+#[inline]
+fn cps_to_mrh(cps: f32) -> f32 {
+    (-0.158644 + 0.07187921 * cps + 0.000008290528 * cps * cps).max(0.0)
+    //(0.0800541 * cps - 0.6395326).max(0.0)
 }
