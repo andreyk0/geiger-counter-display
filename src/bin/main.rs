@@ -15,8 +15,6 @@ use cortex_m::asm::delay;
 use ssd1306::{prelude::*, I2CDisplayInterface, Ssd1306};
 use stm32f1xx_hal::i2c::blocking::BlockingI2c;
 
-use cortex_m_semihosting::hprintln;
-
 use geiger_counter_display::consts::*;
 use geiger_counter_display::display::*;
 use geiger_counter_display::pulse::*;
@@ -51,8 +49,6 @@ mod app {
 
         let rcc = cx.device.RCC.constrain();
         let mono = Systick::new(cx.core.SYST, SYS_FREQ_HZ);
-
-        hprintln!("init");
 
         let clocks = rcc
             .cfgr
@@ -116,17 +112,11 @@ mod app {
     #[idle(local = [lcd], shared = [samples, pulse_timer])]
     fn idle(mut cx: idle::Context) -> ! {
         loop {
-            //cx.shared.pulse_timer.lock(|pt| pt.debug_print());
-
             let ts_from = monotonics::now() - 10.secs();
-
-            let s = cx
-                .shared
-                .samples
-                .lock(|s| s.average_duration_secs_newer_than(ts_from));
+            let (slast, savg) = cx.shared.samples.lock(|s| s.get(ts_from));
 
             cx.local.lcd.clear();
-            render_output(cx.local.lcd, s).unwrap();
+            render_output(cx.local.lcd, slast, savg).unwrap();
             cx.local.lcd.flush().unwrap();
 
             delay(SYS_FREQ_HZ / 4);

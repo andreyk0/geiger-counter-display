@@ -292,6 +292,7 @@ dependencies = [
  "embedded-hal",
  "fugit",
  "heapless",
+ "micromath",
  "panic-halt",
  "ssd1306",
  "stm32f1 0.15.1",

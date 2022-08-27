@@ -1,5 +1,3 @@
-use cortex_m_semihosting::hprintln;
-
 use crate::types::*;
 
 #[derive(Debug, Copy, PartialEq, Clone)]
@@ -40,7 +38,30 @@ impl SampleBuffer {
         }
     }
 
-    pub fn average_duration_secs_newer_than(&self, ts_from: SystemInstant) -> Option<f32> {
+    // (last duration secs, avrg duration secs)
+    pub fn get(&self, ts_from: SystemInstant) -> (Option<f32>, Option<f32>) {
+        let i = if self.next_idx > 0 {
+            self.next_idx - 1
+        } else {
+            BUF_SIZE - 1
+        };
+
+        (
+            self.samples[i]
+                .iter()
+                .filter_map(|s| {
+                    if s.ts >= ts_from {
+                        Some(s.duration_seconds)
+                    } else {
+                        None
+                    }
+                })
+                .next(),
+            self.average_duration_secs_newer_than(ts_from),
+        )
+    }
+
+    fn average_duration_secs_newer_than(&self, ts_from: SystemInstant) -> Option<f32> {
         let (n, sum) = self
             .samples
             .iter()

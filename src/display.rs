@@ -8,11 +8,19 @@ use embedded_graphics::{
 use core::fmt::Write;
 use heapless::String;
 
-pub fn render_output<D>(d: &mut D, sample_duration_seconds: Option<f32>) -> Result<(), D::Error>
+use micromath::F32Ext;
+
+pub fn render_output<D>(
+    d: &mut D,
+    last_sample_duration_seconds: Option<f32>,
+    avg_sample_duration_seconds: Option<f32>,
+) -> Result<(), D::Error>
 where
     D: DrawTarget<Color = BinaryColor>,
 {
-    let samples_per_sec = sample_duration_seconds.map(|s| 1f32 / s).unwrap_or(0f32);
+    let avg_samples_per_sec = avg_sample_duration_seconds
+        .map(|s| 1f32 / s)
+        .unwrap_or(0f32);
 
     let mut sbuf: String<32> = String::new();
 
@@ -21,11 +29,23 @@ where
         .text_color(BinaryColor::On)
         .build();
 
-    Text::with_baseline("0123456789abc", Point::zero(), text_style, Baseline::Top).draw(d)?;
+    // 13 '>' chars fit on the screen
+    // 1000Hz is about the max for this tube
+    let last_samples_per_sec = last_sample_duration_seconds
+        .map(|s| 1f32 / s)
+        .unwrap_or(0f32);
+    let num_arrows = ((last_samples_per_sec.log10() * 4.5).max(0.0).ceil() as u8).min(13);
 
-    write!(sbuf, "{:6.3}", samples_per_sec).unwrap();
+    for _ in 1..num_arrows {
+        sbuf.push('>').unwrap();
+    }
 
+    Text::with_baseline(sbuf.as_str(), Point::zero(), text_style, Baseline::Top).draw(d)?;
+    sbuf.clear();
+
+    write!(sbuf, "{:6.3}/s", avg_samples_per_sec).unwrap();
     Text::with_baseline(&sbuf, Point::new(0, 16), text_style, Baseline::Top).draw(d)?;
+    sbuf.clear();
 
     Ok(())
 }
