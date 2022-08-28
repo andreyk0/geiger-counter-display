@@ -29,9 +29,12 @@ doc:
 fmt:
 	find src -type f -name '*.rs' | xargs rustfmt
 
-flash: bin erase
+flash-stlink: bin erase
 	st-info --descr
 	st-flash write {{bin_target}} 0x8000000
+
+flash-magic:
+	arm-none-eabi-gdb -nx --batch -x magic-flash.gdb {{elf_target}}
 
 erase:
 	st-flash erase
