@@ -33,7 +33,7 @@ flash-stlink: bin erase
 	st-info --descr
 	st-flash write {{bin_target}} 0x8000000
 
-flash-magic:
+flash-magic: bin
 	arm-none-eabi-gdb -nx --batch -x magic-flash.gdb {{elf_target}}
 
 erase:

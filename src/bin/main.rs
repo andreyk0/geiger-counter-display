@@ -75,21 +75,24 @@ mod app {
         let scl = gpiob.pb6.into_alternate_open_drain(&mut gpiob.crl);
         let sda = gpiob.pb7.into_alternate_open_drain(&mut gpiob.crl);
 
+        delay(SYS_FREQ_HZ / 8);
+
         let i2c_bus = BlockingI2c::i2c1(
             cx.device.I2C1,
             (scl, sda),
             &mut afio.mapr,
-            stm32f1xx_hal::i2c::Mode::standard(100.kHz()),
+            stm32f1xx_hal::i2c::Mode::standard(64.kHz()),
             clocks,
-            10000,
-            10,
-            10000,
-            10000,
+            20000,
+            100,
+            20000,
+            20000,
         );
 
         let interface = I2CDisplayInterface::new(i2c_bus);
         let mut lcd = Ssd1306::new(interface, DisplaySize128x64, DisplayRotation::Rotate0)
             .into_buffered_graphics_mode();
+
         lcd.init().unwrap();
 
         // Set up pulse timer
